@@ -1,0 +1,111 @@
+---
+title: "INFO370 Freeform Assignment 2: Native Plant Growth"
+author: "Sonoma Miller, Carson G Miller Rigoli"
+date: today
+format:
+  html:
+    embed-resources: true
+---
+
+## Finding and Loading Data
+
+```{r}
+#install.packages("tidyverse")
+#install.packages("infer")
+library(tidyverse)
+library(infer)
+
+annual_growth <- read.csv("Annual_growth.csv", header = TRUE)
+annual_survival <- read.csv("Annual_survival.csv", header = TRUE)
+
+glimpse(annual_growth)
+glimpse(annual_survival)
+```
+
+These datasets were published on Kaggle by Saurabh Shahane. Conservation and restoration projects often involve starting new populations by introducing individuals into portions of their native or projected range. Such efforts can help meet many related goals, including habitat creation, ecosystem service provisioning, assisted migration, and the reintroduction of imperiled species following local extirpation. The outcomes of reintroduction efforts, however, are highly variable, with results ranging from local extinction to dramatic population growth; reasons for this variation remain unclear. Here, we ask whether population growth following plant reintroductions is governed by variation at two scales: the scale of individual habitat patches to which individuals are reintroduced, and larger among-landscape scales in which similar patches may be situated in landscapes that differ in matrix type, soil conditions, and other factors. Quantifying demographic variation at these two scales will help prioritize locations for introduction and, once introductions take place, forecast population growth. This work took place within a large-scale habitat fragmentation experiment, where individuals of two perennial forb species were reintroduced into eight replicate \~50 ha landscapes, each containing a set of five \~1 ha patches that varied in their degree of isolation (connected by habitat corridors or unconnected) and edge-to-area ratio. Using data on individual growth, survival, reproductive output, and recruitment collected one to two years after reintroduction, we developed models to forecast population growth, then compared forecasts to observed population sizes, three and six years later. Both the type of patch (connected and unconnected) and identity of the landscape to which individuals were reintroduced had effects on forecasted population growth rates, but only variation associated with landscape identity was an accurate predictor of subsequently observed population growth rates. Models that did not include landscape identity had minimal forecasting ability, revealing the key importance of variation at this scale for accurate prediction. Of the five demographic rates used to model population dynamics, seed production was the most important source of forecast error in population growth rates. Our results point to the importance of accounting for landscape-scale variation in demographic models and demonstrate how such models might assist with prioritizing particular landscapes for species reintroduction projects.
+
+### Annual_growth
+
+These data represent growth measurements of transplanted individuals of two native forb species from September 2008-September 2009. The Growth column represents the difference in log-volume (log(cm3) length x width x height) between 2008 and 2009. The Log_size column represents the volume of plants in 2008 as log(cm3). The Species column includes codes that represent Carphephorus bellidifolius (CB) and Liatris earlei (LE). The Patch_type column represents the experimental treatment of patches in the experiment, including Connected, Winged, and Rectangular patches. The Landscape column represents the identity of eight landscape units, each containing four patches.
+
+### Annual_survival
+
+These data represent survival measurements of transplanted individuals of two native forb species from September 2008-September 2009. The Survival column represents survival between 2008 and 2009, coded as 1 for live plants and 0 for dead plants. The Log_size column represents the volume of plants in 2008 as log(cm3). The Species column includes codes that represent Carphephorus bellidifolius (CB) and Liatris earlei (LE). The Patch_type column represents the experimental treatment of patches in the experiment, including Connected, Winged, and Rectangular patches. The Landscape column represents the identity of eight landscape units, each containing four patches.
+
+## Research Questions
+
+In this analysis, we'll investigate the following question: Is Carphephorus bellidifolius (CB) and Liatris earlei (LE) more likely to succeed during reintroduction to the wild?
+
+This analysis looks at point estimates using the difference in mean and median plant growth and survival, as well as the proportion of survival between each species. This is because growth is numerical but survival is a boolean value. A 95% confidence interval is calculated as this data represents a sample of a whole population.
+
+## Inferential Analysis
+
+```{r}
+# mean annual growth
+annual_growth |>
+  specify(Growth ~ Species) |>
+  calculate(stat = "diff in means")
+```
+
+```{r}
+# 95% CI mean annual growth
+annual_growth |>
+  specify(Growth ~ Species) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "diff in means") |>
+  get_confidence_interval(type = "percentile", level = 0.95)
+```
+
+```{r}
+# median annual growth from each species
+annual_growth |>
+  specify(Growth ~ Species) |>
+  calculate(stat = "diff in medians")
+```
+
+```{r}
+# 95% CI median annual growth
+annual_growth |>
+  specify(Growth ~ Species) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "diff in medians") |>
+  get_confidence_interval(type = "percentile", level = 0.95)
+```
+
+```{r}
+# proportion of survival for species
+annual_survival |>
+  filter(Species == "CB") |>
+  mutate(Survival = factor(Survival)) |>
+  specify(response = Survival, success = "1") |>
+  calculate(stat = "prop")
+
+annual_survival |>
+  filter(Species == "LE") |>
+  mutate(Survival = factor(Survival)) |>
+  specify(response = Survival, success = "1") |>
+  calculate(stat = "prop")
+```
+
+```{r}
+# 95% CI mean proportion of survival
+annual_survival |>
+  mutate(Survival = factor(Survival)) |>
+  group_by(Species) |>
+  specify(response = Survival, success = "1") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop") |>
+  get_confidence_interval(type = "percentile", level = 0.95)
+```
+
+## Conclusions and Interpretation of Analysis
+
+Based on my confidence intervals, I found that: - The true difference in mean annual growth for the species is likely between -0.52 and 0.15. - The true difference in median annual growth for the species is likely between -0.76 and 0.24. - The proportion of annual survival for Carphephorus bellidifolius is higher than Liatris earlei by 0.13.
+
+I cannot be confident that one species has higher mean or median growth than the other because the confidence interval crosses 0. However, it is plausible that CB would have a higher growth or survival rate.
+
+### Validity
+
+-   **Construct validity**: I found this data to be fairly comprehensive and clean, and containing all the data I needed.
+-   **External validity**: While this sample of data depicts plant populations fairly accurately, it is important to note that the exact plots on which these plants were grown may vary, and that conditions may be different than other places where these plants grow.
+-   **Internal validity**: The data was a result of a controlled experiment. Because they tested different plots and plants, we can be fairly confident this data proves causality between which plant will do better in the wild.
